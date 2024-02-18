@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
 """
 saving image data
 """
 
 import os
 # import numpy as np
-# from PIL import Image
+from PIL import Image
 # import numbers
 import torch
 from torchvision import transforms, datasets
@@ -18,12 +17,13 @@ from torchvision.datasets.folder import has_file_allowed_extension
 # from time import time
 from tqdm import tqdm
 import cv2
+import matplotlib.pyplot as plt
 import argparse
 import numpy as np
 IMG_EXTENSIONS = ['.png']
 
 class DenoisingData(torch.utils.data.Dataset):
-    """Class for the denoising dataset for both train and test, with 
+    """Class for the denoising dataset for both train and test, with
     file structure:
         data_root/type/noise_level/fov/capture.png
         type:           5
@@ -37,20 +37,22 @@ class DenoisingData(torch.utils.data.Dataset):
         types (seq, optional): e.g. ['TwoPhoton_BPAE_B', 'Confocal_MICE`]
         captures (int): select # images within one folder
     """
-    def __init__(self, root, train, types=None, captures=50):
+    def __init__(self, root, train, types=None, captures=50, device='cuda:0'):
         #image types
         confocal_types = ['Confocal_MICE', 'Confocal_BPAE_R',
                 'Confocal_BPAE_G', 'Confocal_BPAE_B', 'Confocal_FISH',]
         if types is None:
             self.types = confocal_types
-        
+       
         #number of captures
         self.captures = captures
         self.root = root
         self.train = train
+        self.device = device
         self.samples = self._gather_files()
         self.samples = self.rearrange()
-        
+
+       
     def _gather_files(self):
         samples = []
         #fov value
@@ -63,11 +65,10 @@ class DenoisingData(torch.utils.data.Dataset):
                 if (os.path.isdir(os.path.join(root_dir, name)) and name in self.types)]
         test_mix_dir = os.path.join(root_dir, 'test_mix')
         gt_dir = os.path.join(test_mix_dir, 'gt')
-        
-        print(f"{subdirs=}")
+       
 
         noise_dir = os.path.join(test_mix_dir, 'raw')
-        print_img = True
+        print_img = False
         for subdir in tqdm(subdirs):
             gt_dir = os.path.join(subdir, 'gt')
             noise_dir = os.path.join(subdir, 'raw')
@@ -86,7 +87,7 @@ class DenoisingData(torch.utils.data.Dataset):
                         noisy_captures.append(raw)
                         if print_img:
                             cv2.imshow("Raw", raw)
-                        
+                       
                     # randomly select one noisy capture when loading from FOV
             clean = cv2.imread(clean_file[0], cv2.COLOR_BGR2GRAY)
             if print_img:
@@ -98,19 +99,26 @@ class DenoisingData(torch.utils.data.Dataset):
         return samples
 
     def __len__(self):
-        return len(self.samples)
+        return len(self.samples[0])
 
     def __getitem__(self, idx):
-        return self.samples[idx]
+        return self.samples[0][idx], self.samples[1][idx]
 
     def rearrange(self):
         """
         Rearranges samples into a list of (noisy, clean) pairs
         """
-        new_list = []
+        input_list = []
+        target_list = []
         for class_name in self.samples:
             for noisy in class_name[0]:
-                new_list.append((noisy.astype(np.float32).reshape(1, 512, 512), class_name[1].astype(np.float32).reshape(1, 512, 512)))
+                input_list.append(
+                    torch.from_numpy(noisy.astype(np.float32).reshape(1, 512, 512))
+                )
+                target_list.append(
+                    torch.from_numpy(class_name[1].astype(np.float32).reshape(1, 512, 512))
+                )
+        new_list = (input_list, target_list)
         return new_list
 
 
@@ -122,32 +130,3 @@ class DenoisingData(torch.utils.data.Dataset):
             bool: True if the filename ends with a known image extension
         """
         return has_file_allowed_extension(filename, IMG_EXTENSIONS)
-
-    
-def main():
-    dataset = DenoisingData("/Users/emmiekao/denoising-fluorescence/denoising/dataset", True)
-    # samples is a list of tuples
-    # each tuple contains a list of noisy images and one corresponding clean
-    # image
-    for set in dataset:
-        for image in set[0]:
-            # image = image / 255
-            image = torch.tensor(image)
-        # set[1][0] = set[1][0] / 255
-        set[1][0] = torch.tensor(set[1][0])
-
-    dataloader = DataLoader(dataset, batch_size=32, shuffle=True, num_workers=1, drop_last=False)
-
-if __name__ == '__main__':
-    main()
-
-# use dataloader from torch
-# use torch.tensor on a numpy array to turn it into a torch tensor
-# once i have the list i can just turn that into a tensor dataset
-# batch size 32 (get every class represented bc i hav 12 classes)
-# want to use a power of 2 in batchsize
-# shuffle = true
-# can try num_workers = 1 (means that once it finishes training one batch it 
-# would be loading the next batch at the same time)
-# drop_last = false
-# divide all numpy arrays by 255, make into tensors
