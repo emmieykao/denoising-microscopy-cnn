@@ -7,7 +7,7 @@ Many areas of science and biology depend on microscopic images to determine mole
 We begin by cleaning and reorganizing a dataset with images containing Poisson-Gaussian noise, mimicking error that might be encountered in a real-life noisy image. Our final dataset contains (noisy, clean) pairs that the model can train on. We then construct a CNN autoencoder capable of denoising our microscopy images, yielding competitive PSNR and SSIM with other benchmarks. Next, we use the encoder half of the model to condense significant features of our images into two dimensions (and analyze biologically meaningful patterns from these encodings). Finally, we reflect on future uses and potential challenges for further research.
 
 ## File Description:
-`save_data.py`: creates a PyTorch `dataset` class specific for our denoising data. We used data from [this repository](https://github.com/yinhaoz/denoising-fluorescence).
+`save_data.py`: creates a PyTorch `dataset` class specific for our denoising data. We used data from [this repository](https://github.com/yinhaoz/denoising-fluorescence).<br>
 `DAE.py`: trains, tests, and validates our CNN autoencoder model.
 
 ## Credits:
