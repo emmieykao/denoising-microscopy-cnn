@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 saving image data
 """
@@ -23,7 +24,7 @@ import numpy as np
 IMG_EXTENSIONS = ['.png']
 
 class DenoisingData(torch.utils.data.Dataset):
-    """Class for the denoising dataset for both train and test, with
+    """Class for the denoising dataset for both train and test, with 
     file structure:
         data_root/type/noise_level/fov/capture.png
         type:           5
@@ -33,7 +34,7 @@ class DenoisingData(torch.utils.data.Dataset):
 
     Args:
         root (str): root directory to the dataset
-        train (bool): Training set if True, else Test set
+        train (int): Training set if 0, validation set if 1, test set if 2
         types (seq, optional): e.g. ['TwoPhoton_BPAE_B', 'Confocal_MICE`]
         captures (int): select # images within one folder
     """
@@ -43,7 +44,7 @@ class DenoisingData(torch.utils.data.Dataset):
                 'Confocal_BPAE_G', 'Confocal_BPAE_B', 'Confocal_FISH',]
         if types is None:
             self.types = confocal_types
-       
+        
         #number of captures
         self.captures = captures
         self.root = root
@@ -52,20 +53,22 @@ class DenoisingData(torch.utils.data.Dataset):
         self.samples = self._gather_files()
         self.samples = self.rearrange()
 
-       
+        
     def _gather_files(self):
         samples = []
         #fov value
-        if self.train:
+        if self.train == 0:
             self.fov = np.arange(1,19)
-        else:
-            self.fov = np.arange(19,21)
+        elif self.train == 1:
+            self.fov = np.arange(19,20)
+        elif self.train == 2:
+            self.fov = np.arange(20,21)
         root_dir = os.path.expanduser(self.root)
         subdirs = [os.path.join(root_dir, name) for name in os.listdir(root_dir)
                 if (os.path.isdir(os.path.join(root_dir, name)) and name in self.types)]
         test_mix_dir = os.path.join(root_dir, 'test_mix')
         gt_dir = os.path.join(test_mix_dir, 'gt')
-       
+        
 
         noise_dir = os.path.join(test_mix_dir, 'raw')
         print_img = False
@@ -87,7 +90,7 @@ class DenoisingData(torch.utils.data.Dataset):
                         noisy_captures.append(raw)
                         if print_img:
                             cv2.imshow("Raw", raw)
-                       
+                        
                     # randomly select one noisy capture when loading from FOV
             clean = cv2.imread(clean_file[0], cv2.COLOR_BGR2GRAY)
             if print_img:
