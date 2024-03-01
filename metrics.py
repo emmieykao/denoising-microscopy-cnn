@@ -40,7 +40,7 @@ def cal_ssim(clean, noisy, normalized=False):
         clean = clean.add(0.5).mul(255).clamp(0, 255)
         noisy = noisy.add(0.5).mul(255).clamp(0, 255)
 
-    clean, noisy = pd.to_numpy(clean), pd.to_numpy(noisy)
+    clean, noisy = clean.numpy(), noisy.numpy()
     ssim = np.array([structural_similarity(clean[i, 0], noisy[i, 0], data_range=255) 
         for i in range(clean.shape[0])])
 

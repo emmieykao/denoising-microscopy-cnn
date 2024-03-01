@@ -15,7 +15,7 @@ import math
 import pickle
 
 DATA_PATH = "/Users/emmiekao/denoising-fluorescence/denoising/dataset"
-MODEL_EPOCHS = 80 # amount of epochs model was trained on
+MODEL_EPOCHS = 100 # amount of epochs model was trained on
 MODEL_PATH = f"/Users/emmiekao/Desktop/denoising_project/torch_model_{MODEL_EPOCHS}.pt"
 
 DATA_SAVE_PATH = "/Users/emmiekao/Desktop/denoising_project/data/"
@@ -140,6 +140,8 @@ def test_model(model):
     psnr, mse = 0., 0.
     psnr_list = []
     rmse_list = []
+    ssim = 0.
+    ssim_list = []
     for i, test_object in enumerate(test_dataloader):
         test_image_list = test_object[0]
         test_clean_list = test_object[1]
@@ -156,7 +158,10 @@ def test_model(model):
                     with torch.no_grad():
                         new_psnr = cal_psnr(test_clean, reconstructed).sum().item()
                         psnr += new_psnr
-
+            if LOSS_FUNC == "ssim":
+                with torch.no_grad():
+                        new_ssim = cal_ssim(test_clean, reconstructed).sum()
+                        ssim += new_ssim
             reconstructed = reconstructed.detach().numpy()
 
             if save_img:
@@ -175,13 +180,22 @@ def test_model(model):
                 clean_output = clean_output.convert("L")
                 clean_output.save(f"images_{MODEL_EPOCHS}/clean_gt_{MODEL_EPOCHS}_{i}_{j}.jpeg")
                 
-
-        psnr = psnr / len(test_image_list)
         rmse = math.sqrt(mse / IMG_PIXELS)
-        psnr_list.append(str(psnr))
         rmse_list.append(str(rmse))
 
-        return psnr_list, rmse_list
+        if LOSS_FUNC == "psnr":
+            psnr = psnr / len(test_image_list)
+            psnr_list.append(str(psnr))
+            return psnr_list, rmse_list
+        elif LOSS_FUNC == "ssim":
+            ssim = ssim / len(test_image_list)
+            ssim_list.append(str(ssim))
+            return ssim_list, rmse_list
+
+        
+        
+
+        
             
 
 

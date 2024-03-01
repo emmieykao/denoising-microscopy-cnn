@@ -22,14 +22,25 @@ def plot_test(data_dict: dict, error: str) -> None:
     data_dict (dict): dictionary with data name as key
     error (str): "rmse" or "psnr"
     """
+    filename = f"test_graph_{error}"
     raw = []
     for key in data_dict:
         if error in key:
             raw.append(float(data_dict[key][0]))
+
+    print(raw)
     
-    plt.scatter(MODEL_EPOCHS, raw)
-    plt.plot(MODEL_EPOCHS, raw)
-    plt.show()
+    fig=plt.figure()
+    ax=fig.add_subplot(111)
+    ax.scatter(MODEL_EPOCHS, raw)
+    ax.plot(MODEL_EPOCHS, raw)
+    ax.set_xlim(xmin=0.0, xmax=110)
+    ax.set_ylim(ymin=0.0, ymax=90)
+    ax.set_xlabel("Epochs")
+    ax.set_ylabel(error.upper())
+    ax.set_title(f"Epochs vs. Testing {error.upper()}")
+    plt.savefig(filename)
+
 
 def plot_train(data_dict: dict, error: str, version: str) -> None:
     """
@@ -38,7 +49,9 @@ def plot_train(data_dict: dict, error: str, version: str) -> None:
     Args:
     data_dict (dict): dictionary with data name as key
     error (str): "rmse" or "psnr"
+    version (str): "train" or "val" (training or validation data)
     """
+    filename = f"{version}_graph_{error}"
     raw = []
     for key in data_dict:
         if "rmse" in key and version in key:
@@ -50,14 +63,34 @@ def plot_train(data_dict: dict, error: str, version: str) -> None:
         raw = raw ** 2
         inner = 255**2 / raw
         inner = 10 * np.log10(inner)
-        plt.scatter(list(range(TOTAL_EPOCHS)), inner)
-        plt.plot(list(range(TOTAL_EPOCHS)), inner)
-        plt.show()
+        fig=plt.figure()
+        ax=fig.add_subplot(111)
+        ax.scatter(list(range(TOTAL_EPOCHS)), inner)
+        ax.plot(list(range(TOTAL_EPOCHS)), inner)
+        ax.set_xlim(xmin=0.0, xmax=110)
+        ax.set_ylim(ymin=0.0, ymax=90)
+        ax.set_xlabel("Epochs")
+        ax.set_ylabel(error.upper())
+        if version == "train":
+            ax.set_title(f"Epochs vs. Training {error.upper()}")
+        else:
+            ax.set_title(f"Epochs vs. Validation {error.upper()}")
+        plt.savefig(filename)
         return
     else:
-        plt.scatter(list(range(TOTAL_EPOCHS)), raw)
-        plt.plot(list(range(TOTAL_EPOCHS)), raw)
-        plt.show()
+        fig=plt.figure()
+        ax=fig.add_subplot(111)
+        ax.scatter(list(range(TOTAL_EPOCHS)), raw)
+        ax.plot(list(range(TOTAL_EPOCHS)), raw)
+        ax.set_xlim(xmin=0.0, xmax=110)
+        ax.set_ylim(ymin=0.0, ymax=90)
+        ax.set_xlabel("Epochs")
+        ax.set_ylabel(error.upper())
+        if version == "train":
+            ax.set_title(f"Epochs vs. Training {error.upper()}")
+        else:
+            ax.set_title(f"Epochs vs. Validation {error.upper()}")
+        plt.savefig(filename)
     
 
 def main():
@@ -88,8 +121,4 @@ if __name__ == "__main__":
     main()
 
 
-# fig=plt.figure()
-# ax=fig.add_subplot(111)
-# ax.plot(x_data,y_data)
-# ax.set_xlim(xmin=0.0, xmax=1000)
-# plt.savefig(filename)
+
