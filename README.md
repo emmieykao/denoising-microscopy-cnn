@@ -7,15 +7,16 @@ Many areas of science and biology depend on microscopic images to determine mole
 We begin by cleaning and reorganizing a dataset with images containing Poisson-Gaussian noise, mimicking error that might be encountered in a real-life noisy image. Our final dataset contains (noisy, clean) pairs that the model can train on. We then construct a CNN autoencoder capable of denoising our microscopy images, yielding competitive PSNR and SSIM with other benchmarks. Next, we use the encoder half of the model to condense significant features of our images into two dimensions (and analyze biologically meaningful patterns from these encodings). Finally, we reflect on future uses and potential challenges for further research.
 
 ## File Description:
-`metrics.py`: initializes PSNR and SSIM error functions used to test the accuracy of our model (credits to [https://github.com/yinhaoz/denoising-fluorescence](https://github.com/yinhaoz/denoising-fluorescence))<br>
-`save_data.py`: creates a PyTorch `dataset` class specific for our denoising data. We used data from [this repository](https://github.com/yinhaoz/denoising-fluorescence).<br>
-`DAE.py`: constructs the encoder and decoder portions of our CNN autoencoder model. trains, tests, and validates the model using imagesets from before. saves error data into `.pkl` files for later use.<br>
-`graph_error.py`: uses `.pkl` files from `DAE.py` to graph error for our model.<br>
 
+`data`: contains Python lists in `.pkl` format for all error functions.<br>
 `graphs`: contains error graphs from `graph_error.py`.<br>
+`image` folders: contain noisy, clean, and deoised images for all models<br>
 `models`: contains 20, 40, 60, 80, and 100-epoch models.<br>
 
-`image` folders: contain noisy, clean, and deoised images for all models
+`DAE.py`: constructs the encoder and decoder portions of our CNN autoencoder model. trains, tests, and validates the model using imagesets from before. saves error data into `.pkl` files for later use.<br>
+`graph_error.py`: uses `.pkl` files from `DAE.py` to graph error for our model.<br>
+`metrics.py`: initializes PSNR and SSIM error functions used to test the accuracy of our model (credits to [https://github.com/yinhaoz/denoising-fluorescence](https://github.com/yinhaoz/denoising-fluorescence))<br>
+`save_data.py`: creates a PyTorch `dataset` class specific for our denoising data. We used data from [this repository](https://github.com/yinhaoz/denoising-fluorescence).<br>
 
 ## Credits:
 Used data from [https://github.com/yinhaoz/denoising-fluorescence](https://github.com/yinhaoz/denoising-fluorescence)
