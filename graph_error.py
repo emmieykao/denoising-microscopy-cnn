@@ -16,11 +16,11 @@ def import_data(filename: str) -> list:
 
 def plot_test(data_dict: dict, error: str) -> None:
     """
-    creates plots for the testing PSNR and RMSE, graphing epochs trained on vs error
+    creates plots for the testing PSNR, RMSE, or SSIM, graphing epochs trained on vs error
 
     Args:
     data_dict (dict): dictionary with data name as key
-    error (str): "rmse" or "psnr"
+    error (str): "rmse" or "psnr" or "ssim"
     """
     filename = f"test_graph_{error}"
     raw = []
@@ -35,7 +35,10 @@ def plot_test(data_dict: dict, error: str) -> None:
     ax.scatter(MODEL_EPOCHS, raw)
     ax.plot(MODEL_EPOCHS, raw)
     ax.set_xlim(xmin=0.0, xmax=110)
-    ax.set_ylim(ymin=0.0, ymax=90)
+    if error == "ssim":
+        ax.set_ylim(ymin=0, ymax=1)
+    else:
+        ax.set_ylim(ymin=0.0, ymax=90)
     ax.set_xlabel("Epochs")
     ax.set_ylabel(error.upper())
     ax.set_title(f"Epochs vs. Testing {error.upper()}")
@@ -48,7 +51,7 @@ def plot_train(data_dict: dict, error: str, version: str) -> None:
 
     Args:
     data_dict (dict): dictionary with data name as key
-    error (str): "rmse" or "psnr"
+    error (str): "rmse" or "psnr" or "ssim"
     version (str): "train" or "val" (training or validation data)
     """
     filename = f"{version}_graph_{error}"
@@ -59,6 +62,7 @@ def plot_train(data_dict: dict, error: str, version: str) -> None:
     
 
     if error == "psnr":
+        # calculate PSNR using RMSE
         raw = np.array(raw)
         raw = raw ** 2
         inner = 255**2 / raw
@@ -105,16 +109,18 @@ def main():
         for name in file_names[:4]:
             path = f"{DATA_PATH}{name}.pkl"
             data_dict[name] = import_data(path)
-        plot_train(data_dict, "psnr", "val")
+        # choose whether to graph RMSE or PSNR and training ("train") or validation ("val") data 
+        plot_train(data_dict, "rmse", "val")
     else:
         file_names = []
         for epoch in MODEL_EPOCHS:
             file_names.append(f"test_psnr_list_{epoch}")
             file_names.append(f"test_rmse_list_{epoch}")
+            file_names.append(f"test_ssim_list_{epoch}")
         for name in file_names:
             path = f"{DATA_PATH}{name}.pkl"
             data_dict[name] = import_data(path)
-        plot_test(data_dict, "psnr")
+        plot_test(data_dict, "ssim")
 
 
 if __name__ == "__main__":

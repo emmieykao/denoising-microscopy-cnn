@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.init as init
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
-from save_data import DenoisingData
+from save_data import DenoisingDat
 from random import randint
 import cv2
 from PIL import Image
@@ -19,7 +19,7 @@ MODEL_EPOCHS = 100 # amount of epochs model was trained on
 MODEL_PATH = f"/Users/emmiekao/Desktop/denoising_project/torch_model_{MODEL_EPOCHS}.pt"
 
 DATA_SAVE_PATH = "/Users/emmiekao/Desktop/denoising_project/data/"
-LOSS_FUNC = "psnr" # choose from ["psnr", "ssim", "psnr2"]
+LOSS_FUNC = "ssim" # choose from ["psnr", "ssim"]
 RETRAIN = False
 IMG_PIXELS = 2**18
 
@@ -217,10 +217,15 @@ def main():
         data["train_rmse_list"] = train_rmse_list
         data["val_rmse_list"] = val_rmse_list
         torch.save(model, MODEL_PATH)
-
-    test_psnr_list, test_rmse_list = test_model(model)
-    data[f"test_psnr_list_{MODEL_EPOCHS}"] = test_psnr_list
-    data[f"test_rmse_list_{MODEL_EPOCHS}"] = test_rmse_list
+    
+    if LOSS_FUNC == "psnr":
+        test_psnr_list, test_rmse_list = test_model(model)
+        data[f"test_psnr_list_{MODEL_EPOCHS}"] = test_psnr_list
+        data[f"test_rmse_list_{MODEL_EPOCHS}"] = test_rmse_list
+    elif LOSS_FUNC == "ssim":
+        test_ssim_list, test_rmse_list = test_model(model)
+        data[f"test_ssim_list_{MODEL_EPOCHS}"] = test_ssim_list
+        data[f"test_rmse_list_{MODEL_EPOCHS}"] = test_rmse_list
 
     for dataset in data:
         with open(f"{DATA_SAVE_PATH}{dataset}.pkl", "wb") as f:

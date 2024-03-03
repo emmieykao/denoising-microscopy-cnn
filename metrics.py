@@ -45,26 +45,3 @@ def cal_ssim(clean, noisy, normalized=False):
         for i in range(clean.shape[0])])
 
     return ssim
-
-
-def cal_psnr2(clean, noisy, normalized=False):
-    """Use skimage.meamsure.compare_ssim to calculate SSIM
-
-    Args:
-        clean (Tensor): (B, 1, H, W)
-        noisy (Tensor): (B, 1, H, W)
-        normalized (bool): If True, the range of tensors are [-0.5 , 0.5]
-            else [0, 255]
-    Returns:
-        SSIM per image: (B, )
-    """
-    if normalized:
-        clean = clean.add(0.5).mul(255).clamp(0, 255)
-        noisy = noisy.add(0.5).mul(255).clamp(0, 255)
-
-    clean, noisy = to_numpy(clean), to_numpy(noisy)
-
-    psnr = np.array([peak_signal_noise_ratio(clean[i, 0], noisy[i, 0], data_range=255) 
-        for i in range(clean.shape[0])])
-
-    return psnr 
