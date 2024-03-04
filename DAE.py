@@ -25,7 +25,6 @@ IMG_PIXELS = 2**18
 
 
 class DAE(nn.Module):
-    # reference: https://github.com/cszn/DnCNN/tree/master/TrainingCodes/dncnn_pytorch
     def __init__(self, depth=5, n_channels=32, image_channels=1, 
             use_bnorm=False, kernel_size=3):
         super(DAE, self).__init__()
