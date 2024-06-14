@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.init as init
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
-from save_data import DenoisingDat
+from save_data import DenoisingData
 from random import randint
 import cv2
 from PIL import Image
@@ -13,6 +13,8 @@ from tqdm import tqdm
 from metrics import *
 import math
 import pickle
+from sklearn.model_selection import KFold
+import random
 
 DATA_PATH = "/Users/emmiekao/denoising-fluorescence/denoising/dataset"
 MODEL_EPOCHS = 100 # amount of epochs model was trained on
@@ -22,40 +24,36 @@ DATA_SAVE_PATH = "/Users/emmiekao/Desktop/denoising_project/data/"
 LOSS_FUNC = "ssim" # choose from ["psnr", "ssim"]
 RETRAIN = False
 IMG_PIXELS = 2**18
-
+random.seed(1)
+np.random.seed(1)
 
 class DAE(nn.Module):
-    def __init__(self, depth=5, n_channels=32, image_channels=1, 
-            use_bnorm=False, kernel_size=3):
+    def __init__(self, layers=3, n_channels=32, image_channels=1, kernel_size=3,
+    padding=1):
         super(DAE, self).__init__()
-        # self.cuda()
-        kernel_size = 3
-        padding = 1
         encoder_layers = []
         decoder_layers = []
 
-        encoder_layers.append(nn.Conv2d(image_channels, n_channels, 
-            kernel_size=kernel_size, padding=padding, bias=True))
-        encoder_layers.append(nn.ReLU())
-        encoder_layers.append(nn.Conv2d(n_channels, n_channels * 2, 
-            kernel_size=kernel_size, padding=padding, bias=True))
-        encoder_layers.append(nn.ReLU())
-        encoder_layers.append(nn.Conv2d(n_channels * 2, 
-        n_channels * 4, kernel_size=kernel_size, padding=padding, 
-        bias=True))
-        encoder_layers.append(nn.ReLU(inplace=True))
+        for l in range(layers):
+            if l == 0:
+                encoder_layers.append(nn.Conv2d(image_channels, n_channels, 
+                    kernel_size=kernel_size, padding=padding, bias=True))
+                encoder_layers.append(nn.ReLU())
+            else:
+                encoder_layers.append(nn.Conv2d(n_channels * 2**(l-1), n_channels * 2**l, 
+                    kernel_size=kernel_size, padding=padding, bias=True))
+                encoder_layers.append(nn.ReLU())
         self.encoder = nn.Sequential(*encoder_layers)
-
         
-        decoder_layers.append(nn.ConvTranspose2d(n_channels * 4, 
-        n_channels * 2, kernel_size=kernel_size, padding=padding, bias=True))
-        decoder_layers.append(nn.ReLU(inplace=True))
-        decoder_layers.append(nn.ConvTranspose2d(n_channels * 2, 
-        n_channels, kernel_size=kernel_size, padding=padding, bias=True))
-        decoder_layers.append(nn.ReLU(inplace=True))
-        decoder_layers.append(nn.ConvTranspose2d(n_channels, 
-        image_channels, kernel_size=kernel_size, padding=padding, bias=True))
-        decoder_layers.append(nn.ReLU(inplace=True))
+        for l in range(layers):
+            if l == layers - 1:
+                decoder_layers.append(nn.ConvTranspose2d(n_channels, 
+                    image_channels, kernel_size=kernel_size, padding=padding, bias=True))
+                decoder_layers.append(nn.ReLU(inplace=True))
+            else:
+                decoder_layers.append(nn.ConvTranspose2d(n_channels * 2**(layers-l-1), 
+                    n_channels * 2**(layers-l-2), kernel_size=kernel_size, padding=padding, bias=True))
+                decoder_layers.append(nn.ReLU(inplace=True))
         self.decoder = nn.Sequential(*decoder_layers)
 
     def forward(self, x):
@@ -68,7 +66,7 @@ def train_model(epochs, dataloader, model, device):
     rmse_list = []
     val_psnr_list = []
     val_rmse_list = []
-    optimizer = torch.optim.AdamW(model.parameters(), lr = 0.0001)
+    optimizer = torch.optim.AdamW(model.parameters(), lr = 0.0001) #, weight_decay=1e-5) --> could also construct a specific class for this
     valid_dataset = DenoisingData(DATA_PATH, 2)
     valid_dataloader = DataLoader(valid_dataset, batch_size=32, shuffle=True, num_workers=1, drop_last=False)
     
@@ -89,7 +87,7 @@ def train_model(epochs, dataloader, model, device):
                 # print(f"TRAINING mean squared error: {loss}")
                 loss.backward()
                 optimizer.step()
-                optimizer.zero_grad()
+                optimizer.zero_grad() # figure out why this is here :(
                 # Storing the losses in a list for plotting
                 mse += loss.item()
                 if LOSS_FUNC == "psnr":
@@ -191,9 +189,71 @@ def test_model(model):
             ssim_list.append(str(ssim))
             return ssim_list, rmse_list
 
+def train_simple(model, X_train, y_train, epochs):
+    optimizer = torch.optim.AdamW(model.parameters(), lr = 0.0001)
+    for epoch in range(epochs):
+        for i, train_image in enumerate(X_train):
+                reconstructed = model(train_image)
+                # Calculating the loss function
+                loss = F.mse_loss(reconstructed, y_train[i], reduction="sum")
+                # print(f"TRAINING mean squared error: {loss}")
+                loss.backward()
+                optimizer.step()
+                optimizer.zero_grad()
+    
+    return model
         
-        
+def k_fold(epochs):
+    X_train = []
+    y_train = []
 
+    # load data
+    train_dataset = DenoisingData(DATA_PATH, 3)
+    dataloader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=1, drop_last=False)
+    for train_object in dataloader:
+        train_image_list = train_object[0]
+        train_clean = train_object[1]
+        for j in range(train_image_list.shape[0]):
+            indices=torch.LongTensor([j])
+            X_train.append(train_image_list.index_select(0, indices))
+            y_train.append(train_clean.index_select(0, indices))
+
+    # Set up K-Fold Cross-Validation
+    k = 5
+    kf = KFold(n_splits=k, shuffle=True, random_state=42)
+    fold_no = 1
+    scores = []
+    for i in range(3):
+        print(f'NUMER OF LAYERS: {i}---------------------------------')
+        for train_index, val_index in kf.split(X_train):
+            print(f'Training fold {fold_no}...')
+            print(f'{train_index=}')
+            X_train_fold = []
+            y_train_fold = []
+            X_val_fold = []
+            y_val_fold = []
+            for index in train_index:
+                X_train_fold.append(X_train[index])
+                y_train_fold.append(y_train[index])
+            
+            for index in val_index:
+                X_val_fold.append(X_train[index])
+                y_train_fold.append(y_train[index])
+
+            model = DAE(layers=i) # fix this
+            # Create and train a new instance of the CNN model
+            model = train_simple(model, X_train_fold, y_train_fold, epochs)    
+            # Evaluate the model on the validation fold
+            score = model.evaluate(X_val_fold, y_val_fold, verbose=0)
+            scores.append(score)
+            print(f'Score for fold {fold_no}: {model.metrics_names[0]} of {score[0]}; {model.metrics_names[1]} of {score[1]*100}%')
+            
+            fold_no += 1
+
+    # Calculate average scores across all folds
+    average_score = np.mean(scores, axis=0)
+    print(f'Average cross-validation score: {average_score[0]}')
+    print(f'Average cross-validation accuracy: {average_score[1]*100}%')
         
             
 
@@ -203,32 +263,34 @@ def main():
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    model = DAE()
-    
-    if os.path.exists(MODEL_PATH) and not RETRAIN:
-        model = torch.load(MODEL_PATH)
-    else:
-        train_dataset = DenoisingData(DATA_PATH, 0)
-        dataloader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=1, drop_last=False)
-        model, train_psnr_list, val_psnr_list, train_rmse_list, val_rmse_list = train_model(20, dataloader, model, device)
-        data["train_psnr_list"] = train_psnr_list
-        data["val_psnr_list"] = val_psnr_list
-        data["train_rmse_list"] = train_rmse_list
-        data["val_rmse_list"] = val_rmse_list
-        torch.save(model, MODEL_PATH)
-    
-    if LOSS_FUNC == "psnr":
-        test_psnr_list, test_rmse_list = test_model(model)
-        data[f"test_psnr_list_{MODEL_EPOCHS}"] = test_psnr_list
-        data[f"test_rmse_list_{MODEL_EPOCHS}"] = test_rmse_list
-    elif LOSS_FUNC == "ssim":
-        test_ssim_list, test_rmse_list = test_model(model)
-        data[f"test_ssim_list_{MODEL_EPOCHS}"] = test_ssim_list
-        data[f"test_rmse_list_{MODEL_EPOCHS}"] = test_rmse_list
+    k_fold(1)
 
-    for dataset in data:
-        with open(f"{DATA_SAVE_PATH}{dataset}.pkl", "wb") as f:
-            pickle.dump(data[dataset], f)
+    # model = DAE()
+    
+    # if os.path.exists(MODEL_PATH) and not RETRAIN:
+    #     model = torch.load(MODEL_PATH)
+    # else:
+    #     train_dataset = DenoisingData(DATA_PATH, 0)
+    #     dataloader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=1, drop_last=False)
+    #     model, train_psnr_list, val_psnr_list, train_rmse_list, val_rmse_list = train_model(20, dataloader, model, device)
+    #     data["train_psnr_list"] = train_psnr_list
+    #     data["val_psnr_list"] = val_psnr_list
+    #     data["train_rmse_list"] = train_rmse_list
+    #     data["val_rmse_list"] = val_rmse_list
+    #     torch.save(model, MODEL_PATH)
+    
+    # if LOSS_FUNC == "psnr":
+    #     test_psnr_list, test_rmse_list = test_model(model)
+    #     data[f"test_psnr_list_{MODEL_EPOCHS}"] = test_psnr_list
+    #     data[f"test_rmse_list_{MODEL_EPOCHS}"] = test_rmse_list
+    # elif LOSS_FUNC == "ssim":
+    #     test_ssim_list, test_rmse_list = test_model(model)
+    #     data[f"test_ssim_list_{MODEL_EPOCHS}"] = test_ssim_list
+    #     data[f"test_rmse_list_{MODEL_EPOCHS}"] = test_rmse_list
+
+    # for dataset in data:
+    #     with open(f"{DATA_SAVE_PATH}{dataset}.pkl", "wb") as f:
+    #         pickle.dump(data[dataset], f)
 
 if __name__ == '__main__':
     main()

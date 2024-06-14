@@ -63,6 +63,8 @@ class DenoisingData(torch.utils.data.Dataset):
             self.fov = np.arange(19,20)
         elif self.train == 2:
             self.fov = np.arange(20,21)
+        elif self.train == 3:
+            self.fov = np.arange(1, 2)
         root_dir = os.path.expanduser(self.root)
         subdirs = [os.path.join(root_dir, name) for name in os.listdir(root_dir)
                 if (os.path.isdir(os.path.join(root_dir, name)) and name in self.types)]
