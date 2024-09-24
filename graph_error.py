@@ -3,8 +3,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 DATA_PATH = "/Users/emmiekao/Desktop/denoising_project/data/"
-MODEL_EPOCHS = [20, 40, 60, 80, 100] # amount of epochs model was trained on
-TOTAL_EPOCHS = 100
+MODEL_EPOCHS = [0, 1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95]
+ # amount of epochs model was trained on
+TOTAL_EPOCHS = 95
+ERROR = 'ssim'
+VERSION = 'test'
 
 
 TRAINED = False # whether to load training or testing data
@@ -26,23 +29,26 @@ def plot_test(data_dict: dict, error: str) -> None:
     raw = []
     for key in data_dict:
         if error in key:
-            raw.append(float(data_dict[key][0]))
+            for num in data_dict[key]:
+                raw.append(float(num))
 
     print(raw)
+    print(len(raw))
+    print(len(MODEL_EPOCHS))
     
     fig=plt.figure()
     ax=fig.add_subplot(111)
     ax.scatter(MODEL_EPOCHS, raw)
     ax.plot(MODEL_EPOCHS, raw)
     ax.set_xlim(xmin=0.0, xmax=110)
-    if error == "ssim":
-        ax.set_ylim(ymin=0, ymax=1)
-    else:
-        ax.set_ylim(ymin=0.0, ymax=90)
+    # if error == "ssim":
+    #     ax.set_ylim(ymin=0, ymax=1)
+    # else:
+    #     ax.set_ylim(ymin=0.0, ymax=90)
     ax.set_xlabel("Epochs")
     ax.set_ylabel(error.upper())
     ax.set_title(f"Epochs vs. Testing {error.upper()}")
-    plt.savefig(filename)
+    plt.savefig('graphs/'+filename)
 
 
 def plot_train(data_dict: dict, error: str, version: str) -> None:
@@ -79,7 +85,7 @@ def plot_train(data_dict: dict, error: str, version: str) -> None:
             ax.set_title(f"Epochs vs. Training {error.upper()}")
         else:
             ax.set_title(f"Epochs vs. Validation {error.upper()}")
-        plt.savefig(filename)
+        plt.savefig('graphs/'+filename)
         return
     else:
         fig=plt.figure()
@@ -94,7 +100,7 @@ def plot_train(data_dict: dict, error: str, version: str) -> None:
             ax.set_title(f"Epochs vs. Training {error.upper()}")
         else:
             ax.set_title(f"Epochs vs. Validation {error.upper()}")
-        plt.savefig(filename)
+        plt.savefig('graphs/'+filename)
     
 
 def main():
@@ -110,17 +116,18 @@ def main():
             path = f"{DATA_PATH}{name}.pkl"
             data_dict[name] = import_data(path)
         # choose whether to graph RMSE or PSNR and training ("train") or validation ("val") data 
-        plot_train(data_dict, "rmse", "val")
+        plot_train(data_dict, ERROR, VERSION)
     else:
         file_names = []
-        for epoch in MODEL_EPOCHS:
-            file_names.append(f"test_psnr_list_{epoch}")
-            file_names.append(f"test_rmse_list_{epoch}")
-            file_names.append(f"test_ssim_list_{epoch}")
+        epoch = '95'
+        file_names.append(f"test_psnr_list_{epoch}")
+        file_names.append(f"test_rmse_list_{epoch}")
+        file_names.append(f"test_ssim_list_{epoch}")
         for name in file_names:
             path = f"{DATA_PATH}{name}.pkl"
             data_dict[name] = import_data(path)
-        plot_test(data_dict, "ssim")
+        print(data_dict)
+        plot_test(data_dict, ERROR)
 
 
 if __name__ == "__main__":
